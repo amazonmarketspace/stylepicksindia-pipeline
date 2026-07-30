@@ -1,0 +1,17 @@
+associate_tag: "universeofsma-21"
+marketplace: "www.amazon.in"
+channel_name: "StylePicksIndia"
+niche: "apparel & clothing"
+currency: "Rs"
+long_form:
+  target_minutes: 9
+  products: 8
+  seconds_per_product: 55
+short_form:
+  target_seconds: 30
+  products: 1
+uploads_per_day: 2
+upload_times_ist: ["09:00", "19:30"]
+disclosure: "As an Amazon Associate I earn from qualifying purchases."
+price_caveat: "Prices and discounts correct at time of recording. Check the link for the current price."
+require_real_discount: true
