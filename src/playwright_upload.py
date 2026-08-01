@@ -224,7 +224,7 @@ def main():
     manifest_path = out_dirs[-1]
     d = manifest_path.parent
     manifest = json.loads(manifest_path.read_text())
-    ps = manifest["products"]
+    ps = manifest if isinstance(manifest, list) else manifest.get("products", manifest)
 
     # Read description and title
     desc = (d / "description.txt").read_text() if (d / "description.txt").exists() else ""
