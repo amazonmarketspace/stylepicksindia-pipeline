@@ -1,30 +1,34 @@
 #!/usr/bin/env python3
 """
-Downloads a video from Google Drive by slot name, uploads to YouTube,
-then deletes it from Drive. Triggered at exact IST times by cron-job.org.
+Downloads video from Google Drive by slot, uploads to YouTube, deletes from Drive.
+Triggered at exact IST times by cron-job.org via workflow_dispatch.
 """
-import json, os, sys, tempfile
+import json, os, sys, tempfile, io
 from pathlib import Path
-from google.oauth2.service_account import Credentials
-from google.oauth2.credentials import Credentials as OAuthCreds
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
-import io
 
 ROOT         = Path(__file__).resolve().parent.parent
 DRIVE_FOLDER = os.environ["DRIVE_FOLDER_ID"]
-SLOT         = os.environ["UPLOAD_SLOT"]   # e.g. long_1, short_2
+SLOT         = os.environ["UPLOAD_SLOT"]
 TOKEN_URI    = "https://oauth2.googleapis.com/token"
 
+
 def drive_client():
-    creds = Credentials.from_service_account_info(
-        json.loads(os.environ["GOOGLE_CREDS"]),
+    creds = Credentials(
+        None,
+        refresh_token=os.environ["DRIVE_REFRESH_TOKEN"],
+        client_id=os.environ["YT_CLIENT_ID"],
+        client_secret=os.environ["YT_CLIENT_SECRET"],
+        token_uri=TOKEN_URI,
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build("drive", "v3", credentials=creds)
 
+
 def yt_client():
-    creds = OAuthCreds(
+    creds = Credentials(
         None,
         refresh_token=os.environ["YT_REFRESH_TOKEN"],
         client_id=os.environ["YT_CLIENT_ID"],
@@ -34,101 +38,96 @@ def yt_client():
     )
     return build("youtube", "v3", credentials=creds)
 
+
 def find_slot_files(svc, slot):
-    """Find video and metadata files for this slot in Drive folder."""
-    q = f"'{DRIVE_FOLDER}' in parents and trashed=false"
+    q = f"\'{DRIVE_FOLDER}\' in parents and trashed=false"
     files = svc.files().list(q=q, fields="files(id,name)").execute().get("files", [])
-    vid_id  = next((f["id"] for f in files if f["name"] == f"{slot}_video.mp4"), None)
-    meta_id = next((f["id"] for f in files if f["name"] == f"{slot}_meta.json"), None)
-    return vid_id, meta_id
+    vid  = next((f["id"] for f in files if f["name"] == f"{slot}_video.mp4"), None)
+    meta = next((f["id"] for f in files if f["name"] == f"{slot}_meta.json"), None)
+    return vid, meta
 
-def download_file(svc, file_id, dest_path):
+
+def download_to_temp(svc, file_id, suffix=".mp4"):
+    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
     req = svc.files().get_media(fileId=file_id)
-    with open(dest_path, "wb") as fh:
-        dl = MediaIoBaseDownload(fh, req)
-        done = False
-        while not done:
-            _, done = dl.next_chunk()
+    dl  = MediaIoBaseDownload(tmp, req)
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    tmp.close()
+    return tmp.name
 
-def delete_file(svc, file_id):
-    svc.files().delete(fileId=file_id).execute()
 
 def upload_to_youtube(yt_svc, video_path, meta):
-    title    = meta["title"][:100]
-    desc     = meta["description"][:4900]
-    privacy  = meta.get("privacy", "public")
-
     BASE_TAGS = [
-        "amazon india deals", "amazon finds india", "amazon sale india",
-        "best deals amazon india", "budget deals india", "amazon india 2026",
-        "amazon shopping india", "best amazon products india",
-        "amazon discount india", "amazon offers india",
+        "amazon india deals", "amazon finds india", "best deals amazon india",
+        "amazon sale india", "budget deals india", "amazon india 2026",
+        "amazon shopping india", "amazon offers india", "amazon discount india",
+        "best amazon india",
     ]
-    safe_tags = [t.encode("ascii","ignore").decode("ascii").strip() for t in BASE_TAGS][:15]
-
+    safe_tags = [t.encode("ascii","ignore").decode("ascii") for t in BASE_TAGS][:10]
     body = {
         "snippet": {
-            "title":       title.encode("ascii","ignore").decode("ascii").strip(),
-            "description": desc.encode("ascii","ignore").decode("ascii"),
+            "title":       meta["title"][:100].encode("ascii","ignore").decode("ascii").strip(),
+            "description": meta["description"][:4900].encode("ascii","ignore").decode("ascii"),
             "tags":        safe_tags,
             "categoryId":  "28",
         },
-        "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": False}
+        "status": {"privacyStatus": meta.get("privacy","public"),
+                   "selfDeclaredMadeForKids": False}
     }
     media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype="video/mp4")
     req   = yt_svc.videos().insert(part="snippet,status", body=body, media_body=media)
     res   = None
     while res is None:
         _, res = req.next_chunk()
-    return f"https://www.youtube.com/watch?v={res['id']}"
+    vid_id = res["id"]
+    vid_type = "Short" if meta.get("type") == "short" else "Video"
+    print(f"✓ {vid_type} published: https://www.youtube.com/watch?v={vid_id}")
+    return vid_id
+
 
 def main():
-    print(f"Uploading slot: {SLOT}")
-
+    print(f"[Upload] Slot: {SLOT}")
     drive = drive_client()
     yt    = yt_client()
 
     vid_id, meta_id = find_slot_files(drive, SLOT)
     if not vid_id:
-        print(f"⚠ No video found for slot {SLOT} in Drive — skipping")
-        print("(Render workflow may not have run yet)")
-        sys.exit(0)
+        print(f"⚠ No video found for slot {SLOT} — render workflow may not have run yet")
+        sys.exit(0)  # exit cleanly
 
     # Download metadata
-    meta = {}
+    meta = {"title": f"Amazon India Deals - {SLOT}", "type": "long",
+            "description": "Amazon India deals.", "privacy": "public"}
     if meta_id:
         buf = io.BytesIO()
-        req = drive.files().get_media(fileId=meta_id)
-        dl = MediaIoBaseDownload(buf, req)
+        dl  = MediaIoBaseDownload(buf, drive.files().get_media(fileId=meta_id))
         done = False
         while not done:
             _, done = dl.next_chunk()
         meta = json.loads(buf.getvalue())
-        print(f"Title: {meta.get('title','')[:60]}")
+    print(f"Title: {meta.get('title','')[:60]}")
 
-    # Download video to temp file
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-        tmp_path = tmp.name
-    print(f"Downloading video from Drive...")
-    download_file(drive, vid_id, tmp_path)
-    size_mb = Path(tmp_path).stat().st_size / 1024 / 1024
-    print(f"Downloaded {size_mb:.1f} MB")
+    # Download video
+    print("Downloading from Drive...")
+    tmp_path = download_to_temp(drive, vid_id, ".mp4")
+    size_mb  = Path(tmp_path).stat().st_size / 1024 / 1024
+    print(f"Downloaded: {size_mb:.1f} MB")
 
     # Upload to YouTube
     print("Uploading to YouTube...")
-    url = upload_to_youtube(yt, tmp_path, meta)
-    print(f"✓ Published: {url}")
+    upload_to_youtube(yt, tmp_path, meta)
 
-    # Delete from Drive (video + metadata)
-    print("Deleting from Drive...")
-    delete_file(drive, vid_id)
+    # Delete from Drive
+    drive.files().delete(fileId=vid_id).execute()
     if meta_id:
-        delete_file(drive, meta_id)
-    print(f"✓ Deleted slot {SLOT} from Drive")
+        drive.files().delete(fileId=meta_id).execute()
+    print(f"✓ Slot {SLOT} deleted from Drive")
 
-    # Cleanup temp file
     Path(tmp_path).unlink(missing_ok=True)
-    print(f"✓ Done — {SLOT} uploaded and Drive cleaned")
+    print("Done.")
+
 
 if __name__ == "__main__":
     main()
