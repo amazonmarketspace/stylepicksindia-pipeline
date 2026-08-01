@@ -1,7 +1,7 @@
 name: daily-video
 on:
   schedule:
-    - cron: '30 2 * * *'
+    - cron: '30 18 * * *'   # 00:00 IST — fires ~08:30 IST after GitHub delay
   workflow_dispatch:
 
 jobs:
@@ -16,15 +16,24 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu
 
       - name: Install Python deps
-        run: pip install pyyaml pillow edge-tts google-api-python-client google-auth-oauthlib
+        run: pip install pyyaml pillow edge-tts google-api-python-client google-auth-oauthlib playwright
 
-      - name: Scrape fresh products from Amazon India
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Reset any stuck in_progress rows
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "Sheet1"
+        run: python3 src/reset_sheet.py || true
+
+      - name: Scrape fresh apparel products from Amazon India
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "Sheet1"
           DAILY_NEW_TARGET: "40"
-          NICHE: "apparel & clothing"
         run: python3 src/scrape_products.py
 
       - name: Pull today's batch from Google Sheet
@@ -46,15 +55,15 @@ jobs:
       - name: Render 5 Shorts
         run: python3 src/render.py --format short --max-shorts 5
 
-      - name: Upload to YouTube and mark rows done
+      - name: Upload to YouTube via Playwright (no API quota)
         env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_EMAIL: ${{ secrets.YT_EMAIL }}
+          YT_PASSWORD: ${{ secrets.YT_PASSWORD }}
+          YT_CHANNEL_HANDLE: StylePicksIndia
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "Sheet1"
-        run: python3 src/upload.py --privacy public --max-long 1 --max-short 5
+        run: python3 src/playwright_upload.py --privacy public --max-long 1 --max-short 5 --headless
 
       - uses: actions/upload-artifact@v4
         if: always()
