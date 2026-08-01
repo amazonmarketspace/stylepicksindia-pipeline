@@ -3,29 +3,28 @@ on:
   workflow_dispatch:
     inputs:
       slot:
-        description: 'Video slot to upload (long_1/short_1/long_2/short_2/long_3/short_3)'
+        description: 'Slot to upload: long_1/short_1/long_2/short_2/long_3/short_3'
         required: true
         type: string
 
 jobs:
   upload:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
 
-      - name: Install Python deps
+      - name: Install deps
         run: pip install pyyaml google-api-python-client google-auth-oauthlib
 
-      - name: Download video from Drive and upload to YouTube
+      - name: Upload slot ${{ inputs.slot }} to YouTube and delete from Drive
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          GSHEET_ID: ${{ secrets.GSHEET_ID }}
-          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
-          GSHEET_TAB: "StylePicksIndia"
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
           UPLOAD_SLOT: ${{ inputs.slot }}
         run: python3 src/upload_from_drive.py
