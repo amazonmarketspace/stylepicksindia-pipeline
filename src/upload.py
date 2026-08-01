@@ -2,31 +2,43 @@
 """
 Uploads rendered videos to YouTube and marks sheet rows as 'done'.
 Default privacy: public
-Daily quota: 1 long + 5 Shorts (6 videos × 1,600 units = 9,600 / 10,000 limit)
+Daily quota: 1 long + 5 Shorts (6 videos x 1,600 units = 9,600 / 10,000 limit)
 """
-import argparse, json, os, sys
+import argparse, json, os, sys, random
 from pathlib import Path
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.service_account import Credentials as SACredentials
+sys.path.insert(0, str(Path(__file__).parent))
+from titles import make_long_title, make_short_title
 
 ROOT       = Path(__file__).resolve().parent.parent
 TOKEN_URI  = "https://oauth2.googleapis.com/token"
-
+sys.path.insert(0, str(Path(__file__).parent))
+from titles import make_long_title, make_short_title
 BASE_TAGS = [
-    "best smartphone india 2026", "budget smartphone india",
-    "smartphone under 10000", "smartphone under 20000",
-    "best phone india", "android phone india", "5g phone india",
-    "best camera phone india", "smartphone review india",
-    "smartphone accessories", "mobile accessories india",
-    "best smartphone accessories", "phone accessories under 500",
-    "fast charger india", "gan charger", "power bank india",
-    "wireless charger india", "usb c charger", "car charger india",
-    "amazon india deals", "amazon finds india", "amazon sale india",
-    "best deals amazon india", "budget tech india", "tech deals india",
-    "सस्ता स्मार्टफोन", "मोबाइल एक्सेसरी", "अमेज़न ऑफर", "बेस्ट फोन इंडिया",
+    "best fashion deals india 2026",
+    "amazon india fashion",
+    "clothing deals amazon india",
+    "ethnic wear india",
+    "kurta deals india",
+    "saree deals amazon",
+    "women fashion india",
+    "men fashion india",
+    "amazon india deals",
+    "budget fashion india",
+    "apparel deals india",
+    "amazon finds india",
+    "amazon sale india",
+    "best deals amazon india",
+    "style picks india",
+    "affordable fashion india",
+    "fashion india 2026",
+    "amazon fashion sale",
+    "ethnic clothing india",
+    "best clothing india",
 ]
 
 
@@ -73,17 +85,50 @@ def mark_done(rows_info: dict, sheets):
                      for r in rownums]
         }
     ).execute()
-    print(f"Marked rows {rownums} → done")
+    print(f"Marked rows {rownums} -> done")
 
 
 def product_tags(p: dict) -> list:
-    tags = [p.get("brand", "").lower()]
-    name_words = p.get("name", "").lower().replace("-", " ").split()
-    tags.extend([w for w in name_words if len(w) > 3][:4])
-    tags.append(p.get("category", ""))
+    INVALID = set('/\\\\,|<>&"\';:()[]{}@#%^*+=~`')
+    STOP = {'for','the','and','with','this','that','from','into','over','your',
+            'our','its','are','was','has','had','have','been','will','can',
+            'not','but','all','one','new','get','use','may','per','off',
+            'more','also','only','same','just','like','some','than','then',
+            'when','what','which','who','how','why','where','each','both',
+            'buy','best','deal','free','shop','save','sale','fast','good'}
+
+    def clean(word: str) -> str | None:
+        w = word.strip().lower()
+        if not w or len(w) < 4:
+            return None
+        if w in STOP:
+            return None
+        if any(c in INVALID for c in w):
+            return None
+        if any(ord(c) > 127 for c in w):
+            return None
+        if w.replace('.', '').replace('m', '').replace('ft', '').isdigit():
+            return None
+        if len(w) <= 5 and any(c.isdigit() for c in w):
+            return None
+        return w
+
+    tags = []
+    brand = clean(p.get("brand", ""))
+    if brand:
+        tags.append(brand)
+    name_words = p.get("name", "").lower().replace("-", " ").replace("/", " ").split()
+    clean_words = [c for w in name_words if (c := clean(w))]
+    tags.extend(clean_words[:4])
+    cat = clean(p.get("category", ""))
+    if cat:
+        tags.append(cat)
     if p.get("discount", 0) >= 50:
         tags.append(f"{p['discount']}% off amazon")
-    tags.append(f"rs {int(p.get('price', 0))} india")
+    try:
+        tags.append(f"rs {int(p.get('price', 0))} india")
+    except (ValueError, TypeError):
+        pass
     return [t for t in tags if t]
 
 
@@ -97,15 +142,47 @@ def dedup(tags):
     return out
 
 
+def sanitise_tags(tags: list) -> list:
+    """Strip tags with non-ASCII chars, commas, or angle brackets.
+    YouTube allows only ASCII letters, numbers, spaces and hyphens in tags.
+    Also enforces 500-char total limit."""
+    clean = []
+    total = 0
+    for t in tags:
+        t = t.strip()
+        # Skip if any non-ASCII character
+        if any(ord(c) > 127 for c in t):
+            continue
+        # Skip if contains chars YouTube rejects in tags
+        if any(c in t for c in ('<', '>', '&', '"', "'")):
+            continue
+        if not t:
+            continue
+        if total + len(t) > 495:
+            break
+        clean.append(t)
+        total += len(t)
+    return clean
+
+
 def push(svc, path: Path, title: str, desc: str, tags: list, privacy: str):
+    # Build safe tags - strict ASCII only, no special chars
+    raw_tags = sanitise_tags(tags)
+    # Extra safety: re-encode through ASCII to strip any invisible characters
+    safe_tags = []
+    for t in raw_tags[:25]:  # max 25 to stay well under 30 limit
+        cleaned = t.encode('ascii', 'ignore').decode('ascii').strip()
+        if cleaned and len(cleaned) >= 3:
+            safe_tags.append(cleaned)
+    # Sanitise description - remove any chars that YouTube might reject
+    safe_desc = desc[:4900].encode('ascii', 'ignore').decode('ascii')
+    safe_title = title[:100].encode('ascii', 'ignore').decode('ascii').strip()
     body = {
         "snippet": {
-            "title": title[:100],
-            "description": desc[:4900],
-            "tags": tags[:30],
+            "title": safe_title,
+            "description": safe_desc,
+            "tags": safe_tags,
             "categoryId": "28",
-            "defaultLanguage": "hi",
-            "defaultAudioLanguage": "hi",
         },
         "status": {
             "privacyStatus": privacy,
@@ -116,9 +193,16 @@ def push(svc, path: Path, title: str, desc: str, tags: list, privacy: str):
     media = MediaFileUpload(str(path), chunksize=-1, resumable=True,
                             mimetype="video/mp4")
     req = svc.videos().insert(part="snippet,status", body=body, media_body=media)
-    res = None
-    while res is None:
-        _, res = req.next_chunk()
+    try:
+        res = None
+        while res is None:
+            _, res = req.next_chunk()
+    except Exception as e:
+        err_str = str(e)
+        if 'uploadLimitExceeded' in err_str:
+            print(f"  ⚠ YouTube daily upload limit reached - will retry tomorrow at 8am IST")
+            sys.exit(0)  # exit cleanly so rows aren't marked done but pipeline doesn't fail
+        raise
     vid = res["id"]
     print(f"  https://youtu.be/{vid}  [{privacy}]")
     return vid
@@ -155,11 +239,12 @@ def main():
 
     # --- Long-form ---
     if not a.shorts_only and (d / "long.mp4").exists() and uploaded < a.max_long:
-        title = (f"Top {len(ps)} Smartphones & Accessories on Amazon India "
-                 f"| Up to {top}% Off | Best Deals 2026")[:100]
-        all_tags = dedup(BASE_TAGS + [t for p in ps for t in product_tags(p)])
+        title = make_long_title(ps)
+        # Use only BASE_TAGS - dynamic product tags cause invalidTags 400 errors
+        safe_base_tags = [t.encode('ascii','ignore').decode('ascii').strip()
+                          for t in BASE_TAGS if t.encode('ascii','ignore').decode('ascii').strip()]
         print("Uploading long-form video...")
-        push(svc, d / "long.mp4", title, desc, all_tags[:30], a.privacy)
+        push(svc, d / "long.mp4", title, desc, safe_base_tags[:20], a.privacy)
         uploaded += 1
 
     # --- Shorts ---
@@ -170,29 +255,27 @@ def main():
         f = d / f"short_{i:02d}.mp4"
         if not f.exists():
             continue
-        st = (f"{p['brand']} {p['name']} - "
-              f"₹{int(p['price'])} | {p['discount']}% Off | #shorts")[:100]
+        st = make_short_title(p)
         sd = (
             f"{p['hook']}\n\n"
-            f"✅ {p['name']}\n"
-            f"💰 Price: ₹{int(p['price'])} (was ₹{int(p['mrp'])}, {p['discount']}% off)\n"
-            f"🔗 {p['url']}\n\n"
+            f"{p['name']}\n"
+            f"Price: Rs{int(p['price'])} (was Rs{int(p['mrp'])}, {p['discount']}% off)\n"
+            f"Link: {p['url']}\n\n"
             f"As an Amazon Associate I earn from qualifying purchases.\n"
             f"Prices correct at time of recording.\n\n"
             f"#shorts #amazonfinds #smartphoneaccessories #techdeals #india "
             f"#{p['brand'].lower().replace(' ','')} #mobilegadgets #amazonsale"
         )
-        short_tags = dedup(BASE_TAGS[:10] + product_tags(p) + [
-            "shorts", "youtube shorts", "tech shorts india",
-            "amazon shorts", "mobile accessories shorts"
-        ])
+        short_tags = [t.encode('ascii','ignore').decode('ascii').strip()
+                      for t in BASE_TAGS[:15] + ["shorts", "youtube shorts", "tech shorts india"]
+                      if t.encode('ascii','ignore').decode('ascii').strip()]
         print(f"Uploading Short {i}: {p['name'][:40]}...")
         push(svc, f, st, sd, short_tags[:30], a.privacy)
         count += 1
 
     # --- Mark rows done AFTER all uploads succeed ---
     mark_done(rows_info, sheets)
-    print(f"\n✅ Upload complete. {uploaded} long + {count} Shorts published.")
+    print(f"\nOK Upload complete. {uploaded} long + {count} Shorts published.")
 
 
 if __name__ == "__main__":
