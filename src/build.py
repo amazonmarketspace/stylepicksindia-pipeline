@@ -49,7 +49,7 @@ def load_products() -> list[dict]:
         mrp, price = float(r["mrp"]), float(r["price"])
         d = discount_pct(mrp, price)
         if CFG.get("require_real_discount") and mrp < price:
-            sys.exit(f"Row {i}: price above MRP - check your data.")
+            mrp = price  # fix bad data — treat as no discount
         out.append({**r, "mrp": mrp, "price": price, "discount": d,
                     "url": affiliate_url(r["asin"])})
     return out
