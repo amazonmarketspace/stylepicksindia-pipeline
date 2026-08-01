@@ -1,0 +1,115 @@
+name: render-nightly
+on:
+  schedule:
+    - cron: '30 17 * * *'   # 11:00 PM IST every night
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu
+
+      - name: Install Python deps
+        run: pip install pyyaml pillow edge-tts google-api-python-client google-auth-oauthlib
+
+      - name: Reset stuck rows
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+        run: python3 src/reset_sheet.py || true
+
+      - name: Scrape fresh products
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          DAILY_NEW_TARGET: "60"
+        run: python3 src/scrape_products.py
+
+      - name: Render Batch 1 — Long video (for 6am post)
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          BATCH_SLOT: "long_1"
+        run: |
+          python3 src/from_sheet.py
+          python3 src/build.py
+          python3 src/narrate.py
+          python3 src/render.py --format long
+          python3 src/save_to_drive.py --slot long_1
+
+      - name: Render Batch 2 — Short (for 8am post)
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          BATCH_SLOT: "short_1"
+        run: |
+          python3 src/from_sheet.py
+          python3 src/build.py
+          python3 src/narrate.py
+          python3 src/render.py --format short --max-shorts 1
+          python3 src/save_to_drive.py --slot short_1
+
+      - name: Render Batch 3 — Long video (for 10am post)
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          BATCH_SLOT: "long_2"
+        run: |
+          python3 src/from_sheet.py
+          python3 src/build.py
+          python3 src/narrate.py
+          python3 src/render.py --format long
+          python3 src/save_to_drive.py --slot long_2
+
+      - name: Render Batch 4 — Short (for 12pm post)
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          BATCH_SLOT: "short_2"
+        run: |
+          python3 src/from_sheet.py
+          python3 src/build.py
+          python3 src/narrate.py
+          python3 src/render.py --format short --max-shorts 1
+          python3 src/save_to_drive.py --slot short_2
+
+      - name: Render Batch 5 — Long video (for 2pm post)
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          BATCH_SLOT: "long_3"
+        run: |
+          python3 src/from_sheet.py
+          python3 src/build.py
+          python3 src/narrate.py
+          python3 src/render.py --format long
+          python3 src/save_to_drive.py --slot long_3
+
+      - name: Render Batch 6 — Short (for 4pm post)
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          BATCH_SLOT: "short_3"
+        run: |
+          python3 src/from_sheet.py
+          python3 src/build.py
+          python3 src/narrate.py
+          python3 src/render.py --format short --max-shorts 1
+          python3 src/save_to_drive.py --slot short_3
+
+      - name: Summary
+        run: echo "All 6 videos rendered and saved to Drive. Ready for scheduled uploads."
