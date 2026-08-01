@@ -1,12 +1,13 @@
 name: render-nightly
 on:
   schedule:
-    - cron: '30 17 * * *'   # 11:00 PM IST every night
+    - cron: '0 17 * * *'   # 11:00 PM IST every night
   workflow_dispatch:
 
 jobs:
   render:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,86 +31,98 @@ jobs:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "StylePicksIndia"
-          DAILY_NEW_TARGET: "60"
+          DAILY_NEW_TARGET: "80"
         run: python3 src/scrape_products.py
 
-      - name: Render Batch 1 — Long video (for 6am post)
+      - name: Render + Save slot long_1 (6am post)
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "StylePicksIndia"
           BATCH_SLOT: "long_1"
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: |
-          python3 src/from_sheet.py
-          python3 src/build.py
-          python3 src/narrate.py
+          python3 src/from_sheet.py && python3 src/build.py && python3 src/narrate.py
           python3 src/render.py --format long
           python3 src/save_to_drive.py --slot long_1
 
-      - name: Render Batch 2 — Short (for 8am post)
+      - name: Render + Save slot short_1 (8am post)
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "StylePicksIndia"
           BATCH_SLOT: "short_1"
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: |
-          python3 src/from_sheet.py
-          python3 src/build.py
-          python3 src/narrate.py
+          python3 src/from_sheet.py && python3 src/build.py && python3 src/narrate.py
           python3 src/render.py --format short --max-shorts 1
           python3 src/save_to_drive.py --slot short_1
 
-      - name: Render Batch 3 — Long video (for 10am post)
+      - name: Render + Save slot long_2 (10am post)
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "StylePicksIndia"
           BATCH_SLOT: "long_2"
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: |
-          python3 src/from_sheet.py
-          python3 src/build.py
-          python3 src/narrate.py
+          python3 src/from_sheet.py && python3 src/build.py && python3 src/narrate.py
           python3 src/render.py --format long
           python3 src/save_to_drive.py --slot long_2
 
-      - name: Render Batch 4 — Short (for 12pm post)
+      - name: Render + Save slot short_2 (12pm post)
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "StylePicksIndia"
           BATCH_SLOT: "short_2"
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: |
-          python3 src/from_sheet.py
-          python3 src/build.py
-          python3 src/narrate.py
+          python3 src/from_sheet.py && python3 src/build.py && python3 src/narrate.py
           python3 src/render.py --format short --max-shorts 1
           python3 src/save_to_drive.py --slot short_2
 
-      - name: Render Batch 5 — Long video (for 2pm post)
+      - name: Render + Save slot long_3 (2pm post)
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "StylePicksIndia"
           BATCH_SLOT: "long_3"
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: |
-          python3 src/from_sheet.py
-          python3 src/build.py
-          python3 src/narrate.py
+          python3 src/from_sheet.py && python3 src/build.py && python3 src/narrate.py
           python3 src/render.py --format long
           python3 src/save_to_drive.py --slot long_3
 
-      - name: Render Batch 6 — Short (for 4pm post)
+      - name: Render + Save slot short_3 (4pm post)
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
           GSHEET_TAB: "StylePicksIndia"
           BATCH_SLOT: "short_3"
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          DRIVE_REFRESH_TOKEN: ${{ secrets.DRIVE_REFRESH_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: |
-          python3 src/from_sheet.py
-          python3 src/build.py
-          python3 src/narrate.py
+          python3 src/from_sheet.py && python3 src/build.py && python3 src/narrate.py
           python3 src/render.py --format short --max-shorts 1
           python3 src/save_to_drive.py --slot short_3
 
-      - name: Summary
-        run: echo "All 6 videos rendered and saved to Drive. Ready for scheduled uploads."
+      - name: Done
+        run: echo "All 6 slots rendered and saved to Drive. Ready for scheduled uploads at 6am/8am/10am/12pm/2pm/4pm IST"
