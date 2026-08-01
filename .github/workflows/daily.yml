@@ -16,23 +16,20 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu
 
       - name: Install Python deps
-        run: pip install pyyaml pillow edge-tts google-api-python-client google-auth-oauthlib playwright
-
-      - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
+        run: pip install pyyaml pillow edge-tts google-api-python-client google-auth-oauthlib
 
       - name: Reset any stuck in_progress rows
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
-          GSHEET_TAB: "Sheet1"
+          GSHEET_TAB: "StylePicksIndia"
         run: python3 src/reset_sheet.py || true
 
       - name: Scrape fresh apparel products from Amazon India
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
-          GSHEET_TAB: "Sheet1"
+          GSHEET_TAB: "StylePicksIndia"
           DAILY_NEW_TARGET: "40"
         run: python3 src/scrape_products.py
 
@@ -40,7 +37,7 @@ jobs:
         env:
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
-          GSHEET_TAB: "Sheet1"
+          GSHEET_TAB: "StylePicksIndia"
         run: python3 src/from_sheet.py
 
       - name: Build affiliate links and scripts
@@ -55,15 +52,15 @@ jobs:
       - name: Render 5 Shorts
         run: python3 src/render.py --format short --max-shorts 5
 
-      - name: Upload to YouTube via Playwright (no API quota)
+      - name: Upload to YouTube via API
         env:
-          YT_EMAIL: ${{ secrets.YT_EMAIL }}
-          YT_PASSWORD: ${{ secrets.YT_PASSWORD }}
-          YT_CHANNEL_HANDLE: StylePicksIndia
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           GSHEET_ID: ${{ secrets.GSHEET_ID }}
           GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
-          GSHEET_TAB: "Sheet1"
-        run: python3 src/playwright_upload.py --privacy public --max-long 1 --max-short 5 --headless
+          GSHEET_TAB: "StylePicksIndia"
+        run: python3 src/upload.py --privacy public --max-long 1 --max-short 5
 
       - uses: actions/upload-artifact@v4
         if: always()
