@@ -28,22 +28,71 @@ def log(msg):
 
 def login(page):
     """Log into Google account via YouTube."""
-    log("Navigating to YouTube...")
-    page.goto("https://accounts.google.com/signin")
-    page.wait_for_load_state("networkidle")
-
-    log("Entering email...")
-    page.fill('input[type="email"]', YT_EMAIL)
-    page.press('input[type="email"]', "Enter")
-    page.wait_for_timeout(2000)
-
-    log("Entering password...")
-    page.fill('input[type="password"]', YT_PASSWORD)
-    page.press('input[type="password"]', "Enter")
+    log("Navigating to Google sign-in...")
+    page.goto("https://accounts.google.com/signin/v2/identifier?hl=en&flowName=GlifWebSignIn&flowEntry=ServiceLogin")
+    page.wait_for_load_state("domcontentloaded")
     page.wait_for_timeout(3000)
 
-    # Check if 2FA or unusual activity page
-    if "challenge" in page.url or "signin/v2/challenge" in page.url:
+    log(f"Current URL: {page.url}")
+
+    # Try multiple selectors for email field
+    email_selectors = [
+        'input[type="email"]',
+        '#identifierId',
+        'input[name="identifier"]',
+        'input[autocomplete="username"]',
+    ]
+    email_filled = False
+    for sel in email_selectors:
+        try:
+            page.wait_for_selector(sel, timeout=8000)
+            page.fill(sel, YT_EMAIL)
+            page.press(sel, "Enter")
+            email_filled = True
+            log(f"Email entered via {sel}")
+            break
+        except Exception:
+            continue
+
+    if not email_filled:
+        # Take screenshot for debugging
+        page.screenshot(path="/tmp/login_debug.png")
+        log(f"❌ Could not find email field. URL: {page.url}")
+        sys.exit(1)
+
+    page.wait_for_timeout(3000)
+    page.wait_for_load_state("domcontentloaded")
+
+    # Try multiple selectors for password
+    pw_selectors = [
+        'input[type="password"]',
+        'input[name="password"]',
+        'input[name="Passwd"]',
+        '#password input',
+    ]
+    pw_filled = False
+    for sel in pw_selectors:
+        try:
+            page.wait_for_selector(sel, timeout=8000)
+            page.fill(sel, YT_PASSWORD)
+            page.press(sel, "Enter")
+            pw_filled = True
+            log(f"Password entered via {sel}")
+            break
+        except Exception:
+            continue
+
+    if not pw_filled:
+        log(f"❌ Could not find password field. URL: {page.url}")
+        sys.exit(1)
+
+    page.wait_for_timeout(4000)
+    page.wait_for_load_state("domcontentloaded")
+
+    log(f"Post-login URL: {page.url}")
+
+    # Check for 2FA/challenge
+    if any(x in page.url for x in ["challenge", "twostep", "signin/v2/challenge", "mfa"]):
         log("⚠ 2FA or challenge detected — manual intervention needed")
         sys.exit(1)
 
