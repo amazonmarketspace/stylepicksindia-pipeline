@@ -29,28 +29,31 @@ HEADERS = {
 }
 
 SEARCHES = [
-    # Smartphones by brand
-    ("https://www.amazon.in/s?k=samsung+smartphone+india&s=discount-rank",        "smartphone"),
-    ("https://www.amazon.in/s?k=redmi+note+smartphone+india&s=discount-rank",     "smartphone"),
-    ("https://www.amazon.in/s?k=realme+smartphone+india+5g&s=discount-rank",      "smartphone"),
-    ("https://www.amazon.in/s?k=poco+smartphone+india&s=discount-rank",           "smartphone"),
-    ("https://www.amazon.in/s?k=motorola+moto+smartphone+india&s=discount-rank",  "smartphone"),
-    ("https://www.amazon.in/s?k=vivo+smartphone+india&s=discount-rank",           "smartphone"),
-    ("https://www.amazon.in/s?k=infinix+smartphone+india&s=discount-rank",        "smartphone"),
-    ("https://www.amazon.in/s?k=iqoo+smartphone+india&s=discount-rank",           "smartphone"),
-    ("https://www.amazon.in/s?k=oneplus+smartphone+india&s=discount-rank",        "smartphone"),
-    ("https://www.amazon.in/s?k=nokia+smartphone+india&s=discount-rank",          "smartphone"),
+    # Women's clothing
+    ("https://www.amazon.in/s?k=women+kurta+india&s=discount-rank",           "kurta"),
+    ("https://www.amazon.in/s?k=women+saree+india+discount&s=discount-rank",  "saree"),
+    ("https://www.amazon.in/s?k=women+dress+india+discount&s=discount-rank",  "dress"),
+    ("https://www.amazon.in/s?k=women+tops+india+discount&s=discount-rank",   "tops"),
+    ("https://www.amazon.in/s?k=women+leggings+india&s=discount-rank",        "leggings"),
+    ("https://www.amazon.in/s?k=women+jeans+india+discount&s=discount-rank",  "jeans"),
+    ("https://www.amazon.in/s?k=women+salwar+suit+india&s=discount-rank",     "salwar"),
+    ("https://www.amazon.in/s?k=women+ethnic+wear+india&s=discount-rank",     "ethnic"),
+    # Men's clothing
+    ("https://www.amazon.in/s?k=men+tshirt+india+discount&s=discount-rank",   "tshirt"),
+    ("https://www.amazon.in/s?k=men+shirt+india+discount&s=discount-rank",    "shirt"),
+    ("https://www.amazon.in/s?k=men+jeans+india+discount&s=discount-rank",    "jeans"),
+    ("https://www.amazon.in/s?k=men+kurta+india+discount&s=discount-rank",    "kurta"),
+    ("https://www.amazon.in/s?k=men+formal+shirt+india&s=discount-rank",      "formal"),
+    ("https://www.amazon.in/s?k=men+track+pants+india&s=discount-rank",       "trackpants"),
+    # Kids clothing
+    ("https://www.amazon.in/s?k=kids+dress+india+discount&s=discount-rank",   "kidswear"),
+    ("https://www.amazon.in/s?k=kids+tshirt+india+discount&s=discount-rank",  "kidswear"),
+    # Winter wear
+    ("https://www.amazon.in/s?k=women+jacket+india+discount&s=discount-rank", "jacket"),
+    ("https://www.amazon.in/s?k=men+jacket+hoodie+india&s=discount-rank",     "jacket"),
     # Accessories
-    ("https://www.amazon.in/s?k=fast+charger+india+gan&s=discount-rank",          "charger"),
-    ("https://www.amazon.in/s?k=power+bank+india+20000mah&s=discount-rank",       "powerbank"),
-    ("https://www.amazon.in/s?k=wireless+earbuds+india+under+2000&s=discount-rank","earphone"),
-    ("https://www.amazon.in/s?k=phone+case+cover+samsung+redmi&s=discount-rank",  "case"),
-    ("https://www.amazon.in/s?k=usb+c+cable+fast+charging+india&s=discount-rank", "cable"),
-    ("https://www.amazon.in/s?k=tempered+glass+screen+protector+india&s=discount-rank","protector"),
-    ("https://www.amazon.in/s?k=bluetooth+earphones+india+under+500&s=discount-rank","earphone"),
-    ("https://www.amazon.in/s?k=car+phone+holder+mount+india&s=discount-rank",    "car"),
-    ("https://www.amazon.in/s?k=magsafe+wireless+charger+india&s=discount-rank",  "charger"),
-    ("https://www.amazon.in/s?k=selfie+stick+tripod+phone+india&s=discount-rank", "accessory"),
+    ("https://www.amazon.in/s?k=dupatta+india+discount&s=discount-rank",      "dupatta"),
+    ("https://www.amazon.in/s?k=india+fashion+discount+clothing&s=discount-rank", "fashion"),
 ]
 
 PHONE_KEYWORDS = ['smartphone','5g','4g','gb ram','gb storage','android','mobile phone']
