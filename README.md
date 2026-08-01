@@ -26,3 +26,5 @@ asin | name | brand | mrp | price | category | hook | feature_1 | feature_2 | fe
 - Uploads default to private. Switch daily.yml to --privacy public once you have
   reviewed a few batches.
 - Associate tag lives in config.yaml: universeofsma-21
+
+<!-- cron-activate: 01 Aug 2026 22:38 IST -->
