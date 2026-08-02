@@ -1,8 +1,6 @@
 name: render-nightly
 on:
-  schedule:
-    - cron: '30 19 * * *'  # 01:00 AM IST — renders videos ready before 6am uploads
-  workflow_dispatch:
+  workflow_dispatch:  # Triggered by cron-job.org at 01:00 AM IST exactly
 
 jobs:
   render:
