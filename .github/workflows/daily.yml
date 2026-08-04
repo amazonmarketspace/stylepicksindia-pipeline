@@ -1,10 +1,71 @@
-name: daily-video-deprecated
-# This workflow is replaced by render-nightly + upload-scheduled
-# Kept for reference only
+name: daily-video
 on:
+  schedule:
+    - cron: '0 2 * * *'    # 2:00 AM UTC = 7:30 AM IST
   workflow_dispatch:
+
 jobs:
-  info:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - run: echo "Use render-nightly and upload-scheduled workflows instead"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu
+
+      - name: Install Python deps
+        run: pip install pyyaml pillow edge-tts google-api-python-client google-auth-oauthlib
+
+      - name: Reset stuck rows
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+        run: python3 src/reset_sheet.py || true
+
+      - name: Scrape products
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+          DAILY_NEW_TARGET: "40"
+        run: python3 src/scrape_products.py
+
+      - name: Pull batch from sheet
+        env:
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+        run: python3 src/from_sheet.py
+
+      - name: Build scripts
+        run: python3 src/build.py
+
+      - name: Generate Hindi narration
+        run: python3 src/narrate.py
+
+      - name: Render long-form video
+        run: python3 src/render.py --format long
+
+      - name: Render Shorts
+        run: python3 src/render.py --format short --max-shorts 3
+
+      - name: Upload to YouTube
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          GSHEET_ID: ${{ secrets.GSHEET_ID }}
+          GOOGLE_CREDS: ${{ secrets.GOOGLE_CREDS }}
+          GSHEET_TAB: "StylePicksIndia"
+        run: python3 src/upload.py --privacy public --max-long 1 --max-short 3
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: output-${{ github.run_number }}
+          path: out/*/
+          retention-days: 2
